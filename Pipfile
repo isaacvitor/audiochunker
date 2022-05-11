@@ -15,3 +15,7 @@ python_version = "3.8"
 compose-up = "docker-compose up -d --build"
 
 compose-down = "docker-compose down"
+
+
+build = "docker build -t audio-chunker:latest ."
+container = "docker container run -it --name audio_chunker_test --rm audio-chunker /bin/bash"
