@@ -1,0 +1,9 @@
+version: '3.7'
+services:
+  service:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      container_name: audio_chunker
+      env_file:
+        - .env
