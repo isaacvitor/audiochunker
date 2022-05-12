@@ -18,4 +18,4 @@ RUN apt-get update \
 COPY audiochunker ./audiochunker
 COPY tests tests
 
-CMD pytest
+CMD /bin/bash
