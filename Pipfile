@@ -4,6 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+pydub = "*"
 
 [dev-packages]
 pytest = "==7.1.2"
@@ -13,9 +14,6 @@ python_version = "3.8"
 
 [scripts]
 compose-up = "docker-compose up -d --build"
-
 compose-down = "docker-compose down"
-
-
 build = "docker build -t audio-chunker:latest ."
 container = "docker container run -it --name audio_chunker_test --rm audio-chunker /bin/bash"
