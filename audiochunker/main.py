@@ -153,12 +153,10 @@ class AudioFileChunker:
                     chunk_name = f'{chunk_suffix}{chunk_count}.wav'
                     chunk_path = os.path.join(chunks_path, chunk_name)
                     __command = f'ffmpeg -v error -y -ss {t1} -t {t2} -i {input_file_path} {chunk_path}'
-                    self.commands.append(__command)
-                    self.big_command += __command + ' & '
+                    subprocess.check_output(__command, shell=True)
                     self.chunks.append(AudioChunk(file=chunk_path, file_size=0, start=t1, end=t2+t1, duration=t2, text=None))
                 chunk_count += 1
 
-            subprocess.check_output(self.big_command, shell=True)
             self.__get_chunk_size()
             return (self.chunks, self.silences)
         except Exception as e:
