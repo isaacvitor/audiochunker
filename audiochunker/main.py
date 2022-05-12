@@ -4,6 +4,8 @@ import subprocess
 from tempfile import mkstemp
 from typing import List
 
+from pydub import AudioSegment
+
 
 logger = logging.getLogger('scribezilla-service')
 
@@ -139,6 +141,7 @@ class AudioFileChunker:
             raise Exception('chunks_path must be a directory')
 
         try:
+            audio_segment = AudioSegment.from_wav(input_file_path)
             # Getting silences times
             silence_file = FFMPEGTools.create_silence_file(input_file_path, self.silence_threshold, self.silence_duration)
             self.silences =  FFMPEGTools.get_silences_form_file(silence_file)
@@ -152,8 +155,12 @@ class AudioFileChunker:
                     t2 = tms[1]['start'] - tms[0]['end'] + 3 * 0.25
                     chunk_name = f'{chunk_suffix}{chunk_count}.wav'
                     chunk_path = os.path.join(chunks_path, chunk_name)
-                    __command = f'ffmpeg -v error -y -ss {t1} -t {t2} -i {input_file_path} {chunk_path}'
-                    subprocess.check_output(__command, shell=True)
+                    # __command = f'ffmpeg -v error -y -ss {t1} -t {t2} -i {input_file_path} {chunk_path}'
+                    # subprocess.check_output(__command, shell=True)
+                    start_time = t1 * 1000 # in ms
+                    end_time = (t1 + t2) * 1000 # in ms
+                    chunk = audio_segment[start_time:end_time]
+                    chunk.export(chunk_path, format='wav')
                     self.chunks.append(AudioChunk(file=chunk_path, file_size=0, start=t1, end=t2+t1, duration=t2, text=None))
                 chunk_count += 1
 
