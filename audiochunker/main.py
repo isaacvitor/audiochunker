@@ -166,7 +166,7 @@ class AudioChunker:
         audio_segment = AudioSegment.from_wav(self.input_file_path)
         chunk_times = self.__create_chunks_from_silences(self.silences)
         for chunk in chunk_times:
-            yield SegmentChunk(**chunk, audio_segment=audio_segment[chunk.start_milliseconds:chunk.end_milliseconds])
+            yield SegmentChunk(**chunk.__dict__, audio_segment=audio_segment[chunk.start_milliseconds:chunk.end_milliseconds])
 
 
     def chunking_file(self, chunks_path=None, chunk_suffix='chunk_') -> tuple:
@@ -190,25 +190,7 @@ class AudioChunker:
                 chunk.content_size = len(segment.raw_data)
                 self.chunks.append(FileChunk(**chunk.__dict__, chunk_file_path=chunk_path))
                 chunk_count += 1
-               
-            # chunk_suffix = self.chunk_suffix if chunk_suffix is None else chunk_suffix
-            # chunk_count = 0
-            # for s in range(0, len(self.silences)):
-            #     tms = self.silences[s:s+2]        
-            #     if len(tms) == 2:
-            #         t1 = tms[0]['end'] - 0.25
-            #         t2 = tms[1]['start'] - tms[0]['end'] + 3 * 0.25
-            #         chunk_name = f'{chunk_suffix}{chunk_count}.wav'
-            #         chunk_path = os.path.join(chunks_path, chunk_name)
-
-            #         start_time = t1 * 1000 # in ms
-            #         end_time = (t1 + t2) * 1000 # in ms
-            #         chunk = audio_segment[start_time:end_time]
-            #         chunk.export(chunk_path, format='wav')
-            #         self.chunks.append(AudioChunk(file=chunk_path, file_size=0, start=t1, end=t2+t1, duration=t2, text=None))
-            #     chunk_count += 1
-
-            # self.__get_chunk_size()
+            
             return (self.chunks, self.silences)
         except Exception as e:
             raise e
