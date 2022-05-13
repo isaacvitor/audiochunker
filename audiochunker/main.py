@@ -2,7 +2,7 @@ import logging
 import os
 import subprocess
 from tempfile import mkstemp
-from typing import List
+from typing import List, Tuple
 
 from pydub import AudioSegment
 
@@ -82,89 +82,115 @@ class FFMPEGTools:
             os.remove(silence_path_file)
 
 
-class AudioChunk:
-    def __init__(self, file: str = None, file_size: str = None, start: int = 0, end: int = 0, duration: float = 0, text: str = None):
-        self.file = file
-        self.file_size = file_size
-        self.start = start
-        self.end = end
-        self.duration = duration
-        self.text = text
+class BaseChunk:
+    # def __init__(self, content_size: float = 0, start: int = 0, end: int = 0, duration: float = 0, text: str = None):
+    def __init__(self, **kwargs):
+        self.content_size: float = kwargs.get('content_size', 0)
+        self.start: float = kwargs.get('start', 0)
+        self.end: float = kwargs.get('end', 0)
+        self.start_milliseconds = self.start * 1000
+        self.end_milliseconds = self.end * 1000
+        self.duration: float = kwargs.get('duration', 0)        
         self.conf = 1.0
+        self.text: str = kwargs.get('text', None)
     
     def __repr__(self):
-        return f'file:{self.file} size:{self.file_size} start:{self.start} end:{self.end} duration:{self.duration} text:{self.text}'
+        return f'start:{self.start} end:{self.end} duration:{self.duration} content_size:{self.content_size} text:{self.text}'
 
 
-class AudioFileChunker:
-    def __init__(self, input_file_path=None, chunks_path=None, chunk_suffix='chunk_', silence_threshold=-30, silence_duration=0.5):   
+class SegmentChunk(BaseChunk):
+    # def __init__(self, content_size: str = None, start: int = 0, end: int = 0, duration: float = 0, audio_segment: AudioSegment = None):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)        
+        self.audio_segment: AudioSegment = kwargs.get('audio_segment', None) 
+        if self.audio_segment is not None:
+            self.content_size = len(self.audio_segment.raw_data)
+        self.__dict__.update(kwargs)
+
+
+class FileChunk(BaseChunk):
+    # def __init__(self, **kwargs, content_size: str = None, start: int = 0, end: int = 0, duration: float = 0, chunk_file_path: str = None):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.chunk_file_path: str = kwargs.get('chunk_file_path', None)
+        self.__dict__.update(kwargs)
+    
+    def __repr__(self):
+        return f'chunk_file_path:{self.chunk_file_path}, start:{self.start} end:{self.end} duration:{self.duration} content_size:{self.content_size} text:{self.text}'
+
+
+class AudioChunker:
+    def __init__(self, input_file_path, silence_threshold=-30, silence_duration=0.5):
+        if input_file_path is None:
+            raise ValueError('input_file_path is not set.')
+
+        if not os.path.exists(input_file_path):
+            raise FileNotFoundError(f'Audio file {input_file_path} not found.')
+
         self.input_file_path = input_file_path
-        self.chunks_path = chunks_path
-
-        self.chunk_suffix = chunk_suffix
         self.silence_threshold = silence_threshold
         self.silence_duration = silence_duration
 
-        self.chunks: List[AudioChunk] = []
-        self.silences = []
-        self.commands = []
-        self.big_command = ''
-        self.silence_threshold = silence_threshold
-        self.silence_duration = silence_duration
+        self.chunks: List[BaseChunk] = []
+        
+        silence_file = FFMPEGTools.create_silence_file(self.input_file_path, self.silence_threshold, self.silence_duration)
+        self.silences =  FFMPEGTools.get_silences_form_file(silence_file)
+       
         
     def __get_chunk_size(self):
         try:
+            chunk: FileChunk
             for chunk in self.chunks:
-                if os.path.exists(chunk.file):
+                if os.path.exists(chunk.chunk_file_path):
                     chunk.file_size = os.path.getsize(chunk.file)
                 else:
                     logger.warning(f'File {chunk.file} does not exist')
         except Exception as e:
             raise e 
 
+    def __create_chunks_from_silences(self, silences: List[dict])-> List[BaseChunk]:
+        try:
+            chunks_times = []
+            for silence in range(0, len(self.silences)):
+                tms = self.silences[silence:silence+2]        
+                if len(tms) == 2:
+                    t1 = tms[0]['end'] - 0.25
+                    t2 = tms[1]['start'] - tms[0]['end'] + 3 * 0.25
+                    # chunks_times.append(BaseChunk(file=None, file_size=0, start=t1, end=t2+t1, duration=t2, text=None))
+                    chunks_times.append(BaseChunk(start=t1, end=t2+t1, duration=t2))
+            return chunks_times
+        except Exception as e:
+            raise e
 
-    def chunking(self,input_file_path = None, chunks_path=None, chunk_suffix=None):
-        
-        if input_file_path is None and self.input_file_path is None:
-            raise Exception('input_file_path was not specified')
-        input_file_path = self.input_file_path if input_file_path is None else input_file_path
-        
-        if not os.path.isfile(input_file_path):
-            raise FileNotFoundError('input_file_path must be a audio file')
+    def chunking_segment(self) -> SegmentChunk:     
+        audio_segment = AudioSegment.from_wav(self.input_file_path)
+        chunk_times = self.__create_chunks_from_silences(self.silences)
+        for chunk in chunk_times:
+            yield SegmentChunk(**chunk.__dict__, audio_segment=audio_segment[chunk.start_milliseconds:chunk.end_milliseconds])
 
-        if chunks_path is None and self.chunks_path is None:
-            raise ValueError('chunks_path was not specified and must be a directory')
-            
-        
-        chunks_path = self.chunks_path if chunks_path is None else chunks_path
+
+    def chunking_file(self, chunks_path=None, chunk_suffix='chunk_') -> tuple:
+        if chunks_path is None:
+            raise ValueError('chunks_path was not specified and must be a directory')             
+       
         if not os.path.isdir(chunks_path):
             raise Exception('chunks_path must be a directory')
 
         try:
-            audio_segment = AudioSegment.from_wav(input_file_path)
-            # Getting silences times
-            silence_file = FFMPEGTools.create_silence_file(input_file_path, self.silence_threshold, self.silence_duration)
-            self.silences =  FFMPEGTools.get_silences_form_file(silence_file)
-               
-            chunk_suffix = self.chunk_suffix if chunk_suffix is None else chunk_suffix
-            chunk_count = 0
-            for s in range(0, len(self.silences)):
-                tms = self.silences[s:s+2]        
-                if len(tms) == 2:
-                    t1 = tms[0]['end'] - 0.25
-                    t2 = tms[1]['start'] - tms[0]['end'] + 3 * 0.25
-                    chunk_name = f'{chunk_suffix}{chunk_count}.wav'
-                    chunk_path = os.path.join(chunks_path, chunk_name)
-                    # __command = f'ffmpeg -v error -y -ss {t1} -t {t2} -i {input_file_path} {chunk_path}'
-                    # subprocess.check_output(__command, shell=True)
-                    start_time = t1 * 1000 # in ms
-                    end_time = (t1 + t2) * 1000 # in ms
-                    chunk = audio_segment[start_time:end_time]
-                    chunk.export(chunk_path, format='wav')
-                    self.chunks.append(AudioChunk(file=chunk_path, file_size=0, start=t1, end=t2+t1, duration=t2, text=None))
+            audio_segment = AudioSegment.from_wav(self.input_file_path)
+            chunk_times: List[BaseChunk] = self.__create_chunks_from_silences(self.silences)
+            chunk_count:int = 0
+            chunk: BaseChunk
+            for chunk in chunk_times:
+                chunk_name = f'{chunk_suffix}{chunk_count}.wav'
+                chunk_path = os.path.join(chunks_path, chunk_name)
+                # Export
+                segment = audio_segment[chunk.start_milliseconds:chunk.end_milliseconds]
+                segment.export(chunk_path, format='wav')
+                chunk.content_size = len(segment.raw_data)
+                self.chunks.append(FileChunk(**chunk.__dict__, chunk_file_path=chunk_path))
                 chunk_count += 1
-
-            self.__get_chunk_size()
+            
             return (self.chunks, self.silences)
         except Exception as e:
             raise e

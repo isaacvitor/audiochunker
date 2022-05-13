@@ -134,3 +134,5 @@ dmypy.json
 .env
 .venv
 .vscode
+*playground*
+audios/
