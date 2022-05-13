@@ -1,5 +1,7 @@
 import chunk
 import os
+from shutil import rmtree
+from time import sleep
 
 import pytest
 
@@ -20,12 +22,6 @@ chunks_path = 'tests/resources/chunks'
 # Inexistent audio file
 inexistent_audio = 'tests/resources/inexistent.wav'
 
-def setup():
-    if os.path.exists(chunks_path):
-        for f in os.listdir(chunks_path):
-            os.remove(os.path.join(chunks_path, f))
-    else:
-        os.mkdir(chunks_path)
 
 def test_with_inexistent_audio_file():    
     with pytest.raises(FileNotFoundError):
@@ -63,12 +59,3 @@ def test_create_chunks_huge_file():
     assert os.path.exists(chunks[1].file)
     assert os.path.exists(chunks[2].file)
     assert os.path.exists(chunks[len(chunks)-1].file)
-    
-
-# def test_get_silences():
-#     silence_file = FFMPEGTools.create_silence_file(audio_3_utterances)
-#     silences = FFMPEGTools.get_silences_form_file(silence_file)
-    
-#     assert silences != None
-#     assert len(silences) == 4
-#     assert os.path.exists(silence_file) == False
