@@ -83,7 +83,6 @@ class FFMPEGTools:
 
 
 class BaseChunk:
-    # def __init__(self, content_size: float = 0, start: int = 0, end: int = 0, duration: float = 0, text: str = None):
     def __init__(self, **kwargs):
         self.content_size: float = kwargs.get('content_size', 0)
         self.start: float = kwargs.get('start', 0)
@@ -99,7 +98,6 @@ class BaseChunk:
 
 
 class SegmentChunk(BaseChunk):
-    # def __init__(self, content_size: str = None, start: int = 0, end: int = 0, duration: float = 0, audio_segment: AudioSegment = None):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)        
         self.audio_segment: AudioSegment = kwargs.get('audio_segment', None) 
@@ -109,7 +107,6 @@ class SegmentChunk(BaseChunk):
 
 
 class FileChunk(BaseChunk):
-    # def __init__(self, **kwargs, content_size: str = None, start: int = 0, end: int = 0, duration: float = 0, chunk_file_path: str = None):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.chunk_file_path: str = kwargs.get('chunk_file_path', None)
@@ -135,18 +132,6 @@ class AudioChunker:
         
         silence_file = FFMPEGTools.create_silence_file(self.input_file_path, self.silence_threshold, self.silence_duration)
         self.silences =  FFMPEGTools.get_silences_form_file(silence_file)
-       
-        
-    def __get_chunk_size(self):
-        try:
-            chunk: FileChunk
-            for chunk in self.chunks:
-                if os.path.exists(chunk.chunk_file_path):
-                    chunk.file_size = os.path.getsize(chunk.file)
-                else:
-                    logger.warning(f'File {chunk.file} does not exist')
-        except Exception as e:
-            raise e 
 
     def __create_chunks_from_silences(self, silences: List[dict])-> List[BaseChunk]:
         try:
@@ -156,7 +141,6 @@ class AudioChunker:
                 if len(tms) == 2:
                     t1 = tms[0]['end'] - 0.25
                     t2 = tms[1]['start'] - tms[0]['end'] + 3 * 0.25
-                    # chunks_times.append(BaseChunk(file=None, file_size=0, start=t1, end=t2+t1, duration=t2, text=None))
                     chunks_times.append(BaseChunk(start=t1, end=t2+t1, duration=t2))
             return chunks_times
         except Exception as e:
@@ -167,7 +151,6 @@ class AudioChunker:
         chunk_times = self.__create_chunks_from_silences(self.silences)
         for chunk in chunk_times:
             yield SegmentChunk(**chunk.__dict__, audio_segment=audio_segment[chunk.start_milliseconds:chunk.end_milliseconds])
-
 
     def chunking_file(self, chunks_path=None, chunk_suffix='chunk_') -> tuple:
         if chunks_path is None:
