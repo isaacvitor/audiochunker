@@ -48,6 +48,8 @@ class FFMPEGTools:
                         end_match = True
                 if start_match and end_match:
                     return True
+                else:
+                    return False
         except:
             return False
 

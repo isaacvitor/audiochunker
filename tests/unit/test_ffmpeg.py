@@ -16,6 +16,8 @@ inexistent_audio = 'tests/resources/inexistent.wav'
 # Invalid wav file
 invalid_wav = 'tests/resources/error.wav'
 
+empty_file = 'tests/resources/empty_file.txt'
+
 def test_with_inexistent_audio_file():    
     with pytest.raises(FileNotFoundError):
         FFMPEGTools.create_silence_content(inexistent_audio)
@@ -108,3 +110,4 @@ def test_is_a_valid_silence_file():
     valid_path = FFMPEGTools.create_silence_file(audio_3_utterances)
 
     assert FFMPEGTools.is_valid_silence_file(valid_path)
+    assert FFMPEGTools.is_valid_silence_file(empty_file) is False
