@@ -6,7 +6,6 @@ from time import sleep
 import pytest
 
 from audiochunker.main import (
-    FFMPEGTools,
     AudioChunker
 )
 

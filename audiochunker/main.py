@@ -2,12 +2,17 @@ import logging
 import os
 import subprocess
 from tempfile import mkstemp
-from typing import List, Tuple
+from typing import List
 
 from pydub import AudioSegment
 
 
-logger = logging.getLogger('scribezilla-service')
+logger = logging.getLogger(__name__)
+
+
+
+class FFMPEGException(Exception):
+    pass
 
 class FFMPEGTools:
     """
@@ -25,17 +30,35 @@ class FFMPEGTools:
             se = float(times[0].split('silence_end: ')[1])
             sd = float(times[1].split('silence_duration: ')[1])
             return {'end':se, 'duration':sd}
+    
+    @staticmethod
+    def is_valid_silence_file(silence_file):
+        """
+        Check if the silence file is valid.
+        """
+        if not os.path.isfile(silence_file):
+            return False
+        try:
+            with open(silence_file, 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    if 'silence_start' in line:
+                        start_match = True
+                    if 'silence_end' in line:
+                        end_match = True
+                if start_match and end_match:
+                    return True
+        except:
+            return False
 
     @staticmethod
-    def create_silence_file(audio_path: str, silence_threshold=-30, silence_duration=0.5) -> str:
+    def create_silence_content(audio_path: str, silence_threshold=-30, silence_duration=0.5) -> List[str]:
         """
-        Create silence file.
+        Create silence.
         """
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f'Audio file {audio_path} not found.')
             
-        silence_file = mkstemp(suffix='_times', prefix='silences_', dir=None, text=True)
-        _, silence_path_file = silence_file 
         if audio_path is None:
             raise ValueError('audio_path is not set.')
 
@@ -45,23 +68,57 @@ class FFMPEGTools:
         if silence_duration is None:
             raise ValueError('silence_duration is not set.')
 
-        times_command = f'ffmpeg -i {audio_path} -af silencedetect=noise={silence_threshold}dB:d={silence_duration} -f null - 2> {silence_path_file}'
-        subprocess.check_output(times_command, shell=True)
+        times_command = f'ffmpeg -i {audio_path} -af silencedetect=noise={silence_threshold}dB:d={silence_duration} -f null - '
+        
+        ffmpeg_result = None
+        try:
+            ffmpeg_result = subprocess.check_output(times_command, stderr=subprocess.STDOUT, shell=True)
+            return ffmpeg_result.decode('utf-8')
+        except subprocess.CalledProcessError as e:
+            raise FFMPEGException(f'Error while trying to create silence file. {e.output}')
 
-        return silence_path_file
+    @staticmethod
+    def create_silence_file(audio_path: str, silence_threshold=-30, silence_duration=0.5) -> str:
+        """
+        Create silence.
+        """
+        if not os.path.exists(audio_path):
+            raise FileNotFoundError(f'Audio file {audio_path} not found.')
+            
+        silence_file = mkstemp(suffix='_times', prefix='silences_', dir=None, text=True)
+        _, silence_file_path = silence_file 
+        if audio_path is None:
+            raise ValueError('audio_path is not set.')
+
+        if silence_threshold is None:
+            raise ValueError('silence_threshold is not set.')
+        
+        if silence_duration is None:
+            raise ValueError('silence_duration is not set.')
+
+        times_command = f'ffmpeg -i {audio_path} -af silencedetect=noise={silence_threshold}dB:d={silence_duration} -f null - 2> {silence_file_path}'
+        
+        try:
+            subprocess.check_output(times_command, stderr=subprocess.STDOUT, shell=True)
+            return silence_file_path
+        except subprocess.CalledProcessError as e:
+            raise FFMPEGException(f'Error while trying to create silence file. {e.output}')
 
     @classmethod
-    def get_silences_form_file(cls, silence_path_file: str) -> list:
+    def get_silences_from_file(cls, silence_file_path: str) -> list:
         """
         Get silences from a audio file.
         """
-        if silence_path_file is None:
-                raise ValueError('silence_path_file was not specified')
+        if silence_file_path is None:
+            raise ValueError('silence_file_path was not specified')
+        
+        if cls.is_valid_silence_file(silence_file_path) is False:
+            raise FFMPEGException(f'Invalid silence file {silence_file_path}')
 
         try:
             silences = []
 
-            with open(silence_path_file, 'r') as f:
+            with open(silence_file_path, 'r') as f:
                 lines = f.readlines()
                 times = []
                 for line in lines:
@@ -78,8 +135,34 @@ class FFMPEGTools:
             return silences            
         except Exception as e:
             raise e
-        finally:
-            os.remove(silence_path_file)
+    
+    @classmethod
+    def get_silences_from_content(cls, silence_content: str) -> list:
+        """
+        Get silences from content.
+        """
+        if silence_content is None:
+                raise ValueError('silence_content was not specified')
+
+        try:
+            silences = []
+
+            lines = silence_content.splitlines()
+            times = []
+            for line in lines:
+                if 'silencedetect' in line:
+                    line_str = line.split('] ')[1].strip()
+                    if 'silence_start' in line_str:
+                        times.append(cls.__get_start_time(line_str))
+                    elif 'silence_end' in line_str:
+                        times.append(cls.__get_end_time(line_str))
+
+            for i in range(0, len(times), 2):
+                silence = times[i:i+2]
+                silences.append({**silence[0], **silence[1]})
+            return silences            
+        except Exception as e:
+            raise e
 
 
 class BaseChunk:
@@ -130,8 +213,8 @@ class AudioChunker:
 
         self.chunks: List[BaseChunk] = []
         
-        silence_file = FFMPEGTools.create_silence_file(self.input_file_path, self.silence_threshold, self.silence_duration)
-        self.silences =  FFMPEGTools.get_silences_form_file(silence_file)
+        silence_content = FFMPEGTools.create_silence_content(self.input_file_path, self.silence_threshold, self.silence_duration)
+        self.silences =  FFMPEGTools.get_silences_from_content(silence_content)
 
     def __create_chunks_from_silences(self, silences: List[dict])-> List[BaseChunk]:
         try:
