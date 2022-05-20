@@ -40,10 +40,15 @@ class FFMPEGTools:
             return {'end':se, 'duration':sd}
     
     @staticmethod
-    def is_valid_silence_file(silence_file):
+    def is_valid_silence_file(silence_file: str) -> bool:
         """
         Check if the silence file is valid.
-        """
+        
+        Parameters:
+            silence_file (str): File path to the silence file.
+        Returns:
+            bool: True if the silence file is valid, False otherwise.
+        """        
         if not os.path.isfile(silence_file):
             return False
         try:
@@ -62,9 +67,16 @@ class FFMPEGTools:
             return False
 
     @staticmethod
-    def create_silence_content(audio_path: str, silence_threshold=-30, silence_duration=0.5) -> List[str]:
+    def create_silence_content(audio_path: str, silence_threshold: float=-30, silence_duration: float=0.5) -> List[str]:
         """
-        Create silence.
+        Create a list[str] with the content produced by ffmpeg silence.
+
+        Parameters:
+            audio_path (str): File path to the audio file.
+            silence_threshold (float): Silence threshold.
+            silence_duration (float): Silence duration.
+        Returns:
+            List[str]: List of strings with the content produced by ffmpeg silence.
         """
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f'Audio file {audio_path} not found.')
@@ -88,9 +100,16 @@ class FFMPEGTools:
             raise FFMPEGException(f'Error while trying to create silence file. {e.output}')
 
     @staticmethod
-    def create_silence_file(audio_path: str, silence_threshold=-30, silence_duration=0.5) -> str:
+    def create_silence_file(audio_path: str, silence_threshold: float=-30, silence_duration: float=0.5) -> str:
         """
-        Create silence.
+        Create a temporary file with the content produced by ffmpeg silence.
+
+        Parameters:
+            audio_path (str): File path to the audio file.
+            silence_threshold (float): Silence threshold.
+            silence_duration (float): Silence duration.
+        Returns:
+            str: File path to the temporary file.
         """
         if not os.path.exists(audio_path):
             raise FileNotFoundError(f'Audio file {audio_path} not found.')
@@ -117,7 +136,12 @@ class FFMPEGTools:
     @classmethod
     def get_silences_from_file(cls, silence_file_path: str) -> list:
         """
-        Get silences from a audio file.
+        Get the silences from a silence file.
+
+        Parameters:
+            silence_file_path (str): File path to the silence file.
+        Returns:
+            list: List of dictionaries with the start and end time of the silence.
         """
         if silence_file_path is None:
             raise ValueError('silence_file_path was not specified')
@@ -147,9 +171,14 @@ class FFMPEGTools:
             raise e
     
     @classmethod
-    def get_silences_from_content(cls, silence_content: str) -> list:
+    def get_silences_from_content(cls, silence_content: List[str]) -> list:
         """
-        Get silences from content.
+        Get the silences from a list of silence content.
+
+        Parameters:
+            silence_content (List[str]): List of strings with the content produced by ffmpeg silence.
+        Returns:
+            list: List of dictionaries with the start and end time of the silence.
         """
         if silence_content is None:
                 raise ValueError('silence_content was not specified')
@@ -210,7 +239,15 @@ class FileChunk(BaseChunk):
 
 
 class AudioChunker:
-    def __init__(self, input_file_path, silence_threshold=-30, silence_duration=0.5):
+    def __init__(self, input_file_path: str, silence_threshold: float=-30, silence_duration: float=0.5):
+        """
+        Audio chunker.
+
+        Parameters:
+            input_file_path (str): File path to the input audio file.
+        Returns:
+            AudioChunker: Audio chunker instance.
+        """
         if input_file_path is None:
             raise ValueError('input_file_path is not set.')
 
@@ -239,13 +276,28 @@ class AudioChunker:
         except Exception as e:
             raise e
 
-    def chunking_segment(self) -> SegmentChunk:     
+    def chunking_segment(self) -> SegmentChunk:
+        """
+        Chunking the audio file and return a SegmentChunk iterator.
+
+        Returns:
+            SegmentChunk: SegmentChunk instance.
+        """
         audio_segment = AudioSegment.from_wav(self.input_file_path)
         chunk_times = self.__create_chunks_from_silences(self.silences)
         for chunk in chunk_times:
             yield SegmentChunk(**chunk.__dict__, audio_segment=audio_segment[chunk.start_milliseconds:chunk.end_milliseconds])
 
-    def chunking_file(self, chunks_path=None, chunk_suffix='chunk_') -> tuple:
+    def chunking_file(self, chunks_path: str=None, chunk_suffix: str='chunk_') -> tuple:
+        """
+        Chunking the audio file and return tuple with a FileChunk list and silences list.
+
+        Parameters:
+            chunks_path (str): Path to the chunks directory.
+            chunk_suffix (str): Chunk suffix.
+        Returns:
+            tuple: Tuple with a FileChunk list and silences list.
+        """
         if chunks_path is None:
             raise ValueError('chunks_path was not specified and must be a directory')             
        

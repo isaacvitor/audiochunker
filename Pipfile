@@ -8,10 +8,10 @@ pydub = "==0.25.1"
 
 [dev-packages]
 pytest = "==7.1.2"
-wheel = "*"
-setuptools = "*"
-pytest-runner = "*"
-twine = "*"
+wheel = "==0.37.1"
+setuptools = "==62.3.0"
+pytest-runner = "==6.0.0"
+twine = "==4.0.0"
 
 [requires]
 python_version = "3.8"
@@ -21,5 +21,5 @@ compose-up = "docker-compose up -d --build"
 compose-down = "docker-compose down"
 build = "docker build -t audio-chunker:latest ."
 container = "docker container run -it --name audio_chunker_test --rm audio-chunker /bin/bash"
-setup = "python audiochunker/setup.py bdist_wheel"
+setup = "python setup.py bdist_wheel"
 upload = "twine upload dist/* --verbose"
