@@ -1,9 +1,9 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='audiochunker-isaacvitor',
+    name='audiochunker',
     packages=find_packages(include=['audiochunker']),
-    version='0.1.0',
+    version='0.1.1',
     description='Python library for chunking audio',
     author='Isaac Vitor',
     license='MIT',
