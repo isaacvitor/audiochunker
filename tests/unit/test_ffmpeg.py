@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from audiochunker.main import (
+from audiochunker import (
     FFMPEGTools, FFMPEGException
 )
 

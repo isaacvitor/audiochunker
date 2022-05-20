@@ -5,7 +5,7 @@ from time import sleep
 import pytest
 from pydub import AudioSegment
 
-from audiochunker.main import (
+from audiochunker import (
     AudioChunker,
     SegmentChunk
 )
