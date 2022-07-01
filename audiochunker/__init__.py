@@ -11,11 +11,13 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "FFMPEGException",
+    "FFPROBEException",
     "FFMPEGTools",
     "BaseChunk",
     "SegmentChunk",
     "FileChunk",
-    "AudioChunker"
+    "AudioChunker",
+    "AudioInfo"
 ]
 
 
