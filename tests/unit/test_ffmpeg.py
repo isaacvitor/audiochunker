@@ -3,7 +3,7 @@ import os
 import pytest
 
 from audiochunker import (
-    FFMPEGTools, FFMPEGException
+    FFMPEGTools, FFMPEGException, AudioInfo
 )
 
 # This audio file is supposed to have 3 utterances and 4 silence periodes.
@@ -17,6 +17,8 @@ inexistent_audio = 'tests/resources/inexistent.wav'
 invalid_wav = 'tests/resources/error.wav'
 
 empty_file = 'tests/resources/empty_file.txt'
+
+voice_mail = 'tests/resources/voice_mail.mp3'
 
 def test_with_inexistent_audio_file():    
     with pytest.raises(FileNotFoundError):
@@ -111,3 +113,9 @@ def test_is_a_valid_silence_file():
 
     assert FFMPEGTools.is_valid_silence_file(valid_path)
     assert FFMPEGTools.is_valid_silence_file(empty_file) is False
+
+def test_get_audio_file_info():
+    audio_info = FFMPEGTools.get_audio_information(voice_mail)
+
+    assert type(audio_info) == AudioInfo
+    assert audio_info.channels == 1

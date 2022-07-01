@@ -22,6 +22,30 @@ __all__ = [
 class FFMPEGException(Exception):
     pass
 
+class FFPROBEException(Exception):
+    pass
+
+class AudioInfo:
+    def __init__(self, **kwargs):
+        try:
+            self.codec_name: str = kwargs.get('codec_name', None)
+            self.codec_long_name: str = kwargs.get('codec_long_name=PCM', None)
+            self.profile: str = kwargs.get('profile', None)
+            self.codec_type: str = kwargs.get('codec_type', None)
+            self.codec_tag_string: str = kwargs.get('codec_tag_string', None)
+            self.codec_tag: str = kwargs.get('codec_tag', None)
+            self.sample_fmt: str = kwargs.get('sample_fmt', None)
+            self.sample_rate: int = int(kwargs.get('sample_rate', 16000))
+            self.channels: int = int(kwargs.get('channels', 0))
+            self.channel_layout: str = kwargs.get('channel_layout', None)
+            self.bits_per_sample: int = int(kwargs.get('bits_per_sample', 0))
+            self.id: str = kwargs.get('id', None)
+            self.duration_ts: int = int(kwargs.get('duration_ts', 0))
+            self.duration: float = float(kwargs.get('duration', 0.0))
+            self.bit_rate: int = int(kwargs.get('bit_rate', 0))
+        except Exception as e:
+            raise e
+
 class FFMPEGTools:
     """
     FFMPEGTools class.
@@ -203,6 +227,34 @@ class FFMPEGTools:
         except Exception as e:
             raise e
 
+    @classmethod
+    def get_audio_information(cls, audio_path: str) -> AudioInfo:
+        """
+        Get audio information using ffprobe.
+        """
+        if not os.path.exists(audio_path):
+            raise FileNotFoundError(f'Audio file {audio_path} not found.')
+            
+        if audio_path is None:
+            raise ValueError('audio_path is not set.')
+        
+        info_command = f'ffprobe -i {audio_path} -show_streams -select_streams a:0'
+        
+        ffprobe_result = None
+        try:
+            ffprobe_result = subprocess.check_output(info_command, stderr=subprocess.STDOUT, shell=True)
+            info = ffprobe_result.decode('utf-8')
+            lines = info.splitlines()
+            stream_start = lines.index('[STREAM]')
+            stream_end = lines.index('DISPOSITION:default=0')
+            audio_info = lines[stream_start+1:stream_end]
+            for info in audio_info:                
+                k = info.split('=')[0]
+                v = info.split('=')[1]
+                file_info = {i.split('=')[0]:i.split('=')[1] for i in audio_info}
+            return AudioInfo(**file_info)
+        except subprocess.CalledProcessError as e:
+            raise FFPROBEException(f'Error while trying to get audio information. {e.output}')
 
 class BaseChunk:
     def __init__(self, **kwargs):
